@@ -1,19 +1,8 @@
 # Katabump Server Auto-Renewal Tool
 
-[English Version](README_EN.md) | [中文说明](README.md)
+基于[XCQ0607/katabump](https://github.com/XCQ0607/katabump)优化：增加singbox全协议代理、随机时间签到、**ALTCHA验证码自动绕过**
 
-这是一个用于自动续期 Katabump 服务器的自动化脚本。它利用 Playwright 和 CDP (Chrome DevTools Protocol) 技术来模拟用户操作，能够有效绕过 Cloudflare Turnstile 验证码，确保持续的服务器服务。
-
-支持 **Windows 本地运行** 和 **GitHub Actions 云端运行**。
-
-## ✨ 特性
-
-- **智能过盾**: 通过 CDP 协议模拟真实鼠标轨迹和点击行为，结合屏幕坐标伪造，高成功率绕过 Cloudflare Turnstile。
-- **自动重试**: 内置严格的验证重试机制，如果验证失败会自动重启验证流程。
-- **多用户支持**: 支持配置多个账号批量续期。
-- **云端/本地**: 既可以在本地电脑跑，也可以利用 GitHub Actions 每天定时自动跑。
-
----
+### 重要提醒：提示 未找到"See" 按钮...说明代理ip质量有问题，请按要求添加、更换
 
 ## 🚀 GitHub Actions 云端运行 (推荐)
 
@@ -27,11 +16,17 @@
    [{"username": "your_email@example.com", "password": "your_password"}, {"username": "another@example.com", "password": "pwd"}]
    ```
 5. **(可选) 配置代理**:
-   如果 GitHub Actions 的 IP 被屏蔽，或者你想使用特定的 IP 访问，可以添加名为 `HTTP_PROXY` 的 Secret。
-   - **格式**:
-     - 无认证: `http://ip:port`
-     -带认证: `http://username:password@ip:port`
-   - **说明**: 脚本会自动检测代理有效性，如果支持认证会自动处理。默认不启用。
+
+  支持两种代理方式：
+
+  **全协议代理 (推荐)**
+  添加名为 `PROXY_URL` 的 Secret，支持 vmess、vless、hy2、tuic、socks5 等所有主流协议。
+  脚本会自动下载 sing-box 并在本地启动 HTTP 代理，无需手动配置。
+  - **格式示例**:
+    - vmess: `vmess://base64EncodedJSON`
+    - vless: `vless://uuid@host:port?security=tls&type=ws&...#name`
+    - hy2: `hy2://password@host:port?sni=xxx`
+    - socks5: `socks5://user:pass@host:port`
 
 6. **(可选) Telegram 消息推送**:
    如果你希望在续期成功、失败或跳过时收到 Telegram 通知（包含截图），请配置以下 Secret：
@@ -48,6 +43,7 @@
 
 5. 保存后，进入 **Actions** 页面，启用 Workflow。它会在**每天北京时间 08:00 (UTC 00:00)** 自动运行。
 6. 你也可以手动点击 "Run workflow" 立即测试。
+7. **随机延迟**: 定时任务触发时，脚本会随机延迟 0-3 小时后执行，防止被目标站识别为自动化。手动触发时不会有延迟，立即执行。
 
 ---
 
@@ -132,6 +128,7 @@ node renew.js
 ## 🛠️ 项目结构
 
 * `renew.js`: Windows 本地运行的主程序。
-* `action_renew.js`: 专门用于 GitHub Actions 环境的脚本（适配 Linux/Headless）。
+* `action_renew.js`: 专门用于 GitHub Actions 环境的脚本（适配 Linux/Headless），支持随机延迟和 sing-box 代理。
+* `proxy_handler.py`: 代理协议解析器，将 vmess/vless/hy2/tuic/socks5 等协议转换为 sing-box 配置。
 * `.github/workflows/renew.yml`: GitHub Actions 的定时任务配置文件。
 * `login.json`: (需手动创建) 存放本地运行的账号信息。
