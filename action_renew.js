@@ -510,8 +510,6 @@ async function attemptTurnstileCdp(page) {
                     if (await confirmBtn.isVisible()) {
 
                         // User Requested: Screenshot BEFORE final click
-                        const fs = require('fs');
-                        const path = require('path');
                         const photoDir = path.join(process.cwd(), 'screenshots');
                         if (!fs.existsSync(photoDir)) fs.mkdirSync(photoDir, { recursive: true });
                         const safeUser = user.username.replace(/[^a-z0-9]/gi, '_');
@@ -545,8 +543,6 @@ async function attemptTurnstileCdp(page) {
                                     console.log(`   >> ⏳ 暂无法续期。下次可用时间: ${dateStr}`);
 
                                     // 截图证明
-                                    const fs = require('fs');
-                                    const path = require('path');
                                     const photoDir = path.join(process.cwd(), 'screenshots');
                                     if (!fs.existsSync(photoDir)) fs.mkdirSync(photoDir, { recursive: true });
                                     const safeUser = user.username.replace(/[^a-z0-9]/gi, '_');
@@ -581,8 +577,6 @@ async function attemptTurnstileCdp(page) {
                             console.log('   >> ✅ Modal closed. Renew successful!');
 
                             // 截图成功状态
-                            const fs = require('fs');
-                            const path = require('path');
                             const photoDir = path.join(process.cwd(), 'screenshots');
                             if (!fs.existsSync(photoDir)) fs.mkdirSync(photoDir, { recursive: true });
                             const safeUser = user.username.replace(/[^a-z0-9]/gi, '_');
@@ -616,8 +610,6 @@ async function attemptTurnstileCdp(page) {
 
         // Snapshot before handling next user
         // In GitHub Actions, we save to 'screenshots' dir
-        const fs = require('fs');
-        const path = require('path');
         const photoDir = path.join(process.cwd(), 'screenshots');
         if (!fs.existsSync(photoDir)) fs.mkdirSync(photoDir, { recursive: true });
         // Use safe filename
