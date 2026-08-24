@@ -6,8 +6,10 @@ const path = require('path');
 const { spawn, exec } = require('child_process');
 const http = require('http');
 
-const TG_BOT_TOKEN = process.env.TG_BOT_TOKEN;
-const TG_CHAT_ID = process.env.TG_CHAT_ID;
+// Keep compatibility with the notification secret names used by anyrouter-check-in.
+// The TG_* aliases are retained for existing users of this repository.
+const TG_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || process.env.TG_BOT_TOKEN;
+const TG_CHAT_ID = process.env.TELEGRAM_CHAT_ID || process.env.TG_CHAT_ID;
 
 async function sendTelegramMessage(message, imagePath = null) {
     if (!TG_BOT_TOKEN || !TG_CHAT_ID) return;

@@ -9,6 +9,7 @@ on:
 jobs:
   renew:
     runs-on: ubuntu-latest
+    environment: production
     
     steps:
     - uses: actions/checkout@v4
@@ -31,8 +32,9 @@ jobs:
         # 格式: [{"username": "xxx", "password": "xxx"}, ...]
         USERS_JSON: ${{ secrets.USERS_JSON }}
         HTTP_PROXY: ${{ secrets.HTTP_PROXY }}
-        TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
-        TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
+        # Use the same secret names as anyrouter-check-in.
+        TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
       # 使用 xvfb-run 模拟有头环境运行
       run: xvfb-run --auto-servernum --server-args="-screen 0 1280x720x24" node action_renew.js
 
