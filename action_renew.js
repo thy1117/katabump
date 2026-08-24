@@ -277,6 +277,40 @@ async function attemptTurnstileCdp(page) {
     return false;
 }
 
+async function isTurnstileComplete(page) {
+    // Turnstile may expose either a checked checkbox inside its iframe or a
+    // non-empty response token in the parent form. Do not infer success merely
+    // from dispatching a mouse event.
+    try {
+        const tokenPresent = await page.locator('input[name="cf-turnstile-response"]')
+            .evaluateAll((inputs) => inputs.some((input) => Boolean(input.value)))
+            .catch(() => false);
+        if (tokenPresent) return true;
+    } catch (e) { }
+
+    for (const frame of page.frames()) {
+        try {
+            const checkbox = frame.locator('input[type="checkbox"]').first();
+            if (await checkbox.isChecked({ timeout: 500 })) return true;
+        } catch (e) { }
+
+        try {
+            const bodyText = await frame.locator('body').innerText({ timeout: 500 });
+            if (/success|verified/i.test(bodyText)) return true;
+        } catch (e) { }
+    }
+    return false;
+}
+
+async function saveScreenshot(page, username, suffix) {
+    const photoDir = path.join(process.cwd(), 'screenshots');
+    if (!fs.existsSync(photoDir)) fs.mkdirSync(photoDir, { recursive: true });
+    const safeUsername = username.replace(/[^a-z0-9]/gi, '_');
+    const screenshotPath = path.join(photoDir, `${safeUsername}_${suffix}.png`);
+    try { await page.screenshot({ path: screenshotPath, fullPage: true }); } catch (e) { }
+    return screenshotPath;
+}
+
 (async () => {
     const users = getUsers();
     if (users.length === 0) {
@@ -328,6 +362,7 @@ async function attemptTurnstileCdp(page) {
 
     await page.addInitScript(INJECTED_SCRIPT);
     console.log('注入脚本已添加。');
+    let runHadFailure = false;
 
     for (let i = 0; i < users.length; i++) {
         const user = users[i];
@@ -373,31 +408,32 @@ async function attemptTurnstileCdp(page) {
                     await page.waitForTimeout(1000);
                 }
 
+                let captchaPassed = false;
                 if (cdpClickResult) {
                     console.log('   >> 登录 CDP 点击生效。正在等待最多 10秒 Cloudflare 成功标志...');
                     for (let waitSec = 0; waitSec < 10; waitSec++) {
-                        const frames = page.frames();
-                        let isSuccess = false;
-                        for (const f of frames) {
-                            if (f.url().includes('cloudflare')) {
-                                try {
-                                    if (await f.getByText('Success!', { exact: false }).isVisible({ timeout: 500 })) {
-                                        isSuccess = true;
-                                        break;
-                                    }
-                                } catch (e) { }
-                            }
-                        }
-                        if (isSuccess) {
+                        if (await isTurnstileComplete(page)) {
+                            captchaPassed = true;
                             console.log('   >> 登录前 Turnstile 验证成功。');
                             break;
                         }
                         await page.waitForTimeout(1000);
                     }
                 } else {
-                    console.log('   >> 登录前未检测到或未点击 Turnstile，继续操作...');
+                    console.log('   >> 登录前未检测到或未点击 Turnstile。');
                 }
                 // --------------------------------------------
+
+                if (!captchaPassed) {
+                    runHadFailure = true;
+                    console.error('   >> ❌ Cloudflare 验证未完成，不提交登录表单。');
+                    const captchaShotPath = await saveScreenshot(page, user.username, 'captcha_failed');
+                    await sendTelegramMessage(
+                        `❌ *登录未完成*\n用户: ${user.username}\n原因: Cloudflare 验证未通过，未提交登录`,
+                        captchaShotPath
+                    );
+                    continue;
+                }
 
                 await page.getByRole('button', { name: 'Login', exact: true }).click();
 
@@ -405,6 +441,7 @@ async function attemptTurnstileCdp(page) {
                 try {
                     const errorMsg = page.getByText('Incorrect password or no account');
                     if (await errorMsg.isVisible({ timeout: 3000 })) {
+                        runHadFailure = true;
                         console.error(`   >> ❌ 登录失败: 用户 ${user.username} 账号或密码错误`);
                         const photoDir = path.join(process.cwd(), 'screenshots');
                         if (!fs.existsSync(photoDir)) fs.mkdirSync(photoDir, { recursive: true });
@@ -429,6 +466,7 @@ async function attemptTurnstileCdp(page) {
                 await page.getByRole('link', { name: 'See' }).first().click();
             } catch (e) {
                 console.log('未找到 "See" 按钮。');
+                runHadFailure = true;
                 const photoDir = path.join(process.cwd(), 'screenshots');
                 if (!fs.existsSync(photoDir)) fs.mkdirSync(photoDir, { recursive: true });
                 const safeUsername = user.username.replace(/[^a-z0-9]/gi, '_');
@@ -605,6 +643,7 @@ async function attemptTurnstileCdp(page) {
                 }
             }
         } catch (err) {
+            runHadFailure = true;
             console.error(`Error processing user:`, err);
         }
 
@@ -627,5 +666,5 @@ async function attemptTurnstileCdp(page) {
 
     console.log('完成。');
     await browser.close();
-    process.exit(0);
+    process.exit(runHadFailure ? 1 : 0);
 })();
