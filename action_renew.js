@@ -238,11 +238,12 @@ async function launchChrome() {
 
 
     const chromeLogPath = path.join(process.cwd(), 'chrome-startup.log');
-    const chromeLog = fs.createWriteStream(chromeLogPath, { flags: 'a' });
+    const chromeLogFd = fs.openSync(chromeLogPath, 'a');
     const chrome = spawn(CHROME_PATH, args, {
         detached: true,
-        stdio: ['ignore', chromeLog, chromeLog]
+        stdio: ['ignore', chromeLogFd, chromeLogFd]
     });
+    fs.closeSync(chromeLogFd);
     chrome.unref();
 
     console.log('正在等待 Chrome 初始化...');
@@ -254,13 +255,11 @@ async function launchChrome() {
     if (!await checkPort(DEBUG_PORT)) {
         console.error('Chrome 无法在端口 ' + DEBUG_PORT + ' 上启动');
         try {
-            chromeLog.end();
             const startupLog = fs.readFileSync(chromeLogPath, 'utf8').slice(-4000);
             if (startupLog) console.error('[Chrome startup log]\n' + startupLog);
         } catch (e) { }
         throw new Error('Chrome 启动失败');
     }
-    chromeLog.end();
 }
 
 function getUsers() {
