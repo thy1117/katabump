@@ -228,15 +228,20 @@ async function launchChrome() {
 
     if (PROXY_CONFIG) {
         args.push(`--proxy-server=${PROXY_CONFIG.server}`);
-        args.push('--proxy-bypass-list=<-loopback>');
+        // Keep CDP and local browser services off the upstream proxy.
+        // The special <-loopback> token can prevent Chrome from exposing the
+        // remote-debugging endpoint when the proxy itself is localhost.
+        args.push('--proxy-bypass-list=localhost;127.0.0.1');
     }
     // 添加针对 Linux 环境的额外稳定性参数
     args.push('--disable-dev-shm-usage'); // 避免共享内存不足
 
 
+    const chromeLogPath = path.join(process.cwd(), 'chrome-startup.log');
+    const chromeLog = fs.createWriteStream(chromeLogPath, { flags: 'a' });
     const chrome = spawn(CHROME_PATH, args, {
         detached: true,
-        stdio: 'ignore'
+        stdio: ['ignore', chromeLog, chromeLog]
     });
     chrome.unref();
 
@@ -248,8 +253,14 @@ async function launchChrome() {
 
     if (!await checkPort(DEBUG_PORT)) {
         console.error('Chrome 无法在端口 ' + DEBUG_PORT + ' 上启动');
+        try {
+            chromeLog.end();
+            const startupLog = fs.readFileSync(chromeLogPath, 'utf8').slice(-4000);
+            if (startupLog) console.error('[Chrome startup log]\n' + startupLog);
+        } catch (e) { }
         throw new Error('Chrome 启动失败');
     }
+    chromeLog.end();
 }
 
 function getUsers() {
