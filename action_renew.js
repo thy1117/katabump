@@ -406,6 +406,9 @@ async function attemptTurnstileCdp(page) {
                     const errorMsg = page.getByText('Incorrect password or no account');
                     if (await errorMsg.isVisible({ timeout: 3000 })) {
                         console.error(`   >> ❌ 登录失败: 用户 ${user.username} 账号或密码错误`);
+                        const photoDir = path.join(process.cwd(), 'screenshots');
+                        if (!fs.existsSync(photoDir)) fs.mkdirSync(photoDir, { recursive: true });
+                        const safeUsername = user.username.replace(/[^a-z0-9]/gi, '_');
                         const failShotPath = path.join(photoDir, `${safeUsername}.png`);
                         try { await page.screenshot({ path: failShotPath, fullPage: true }); } catch (e) { }
 
@@ -426,6 +429,15 @@ async function attemptTurnstileCdp(page) {
                 await page.getByRole('link', { name: 'See' }).first().click();
             } catch (e) {
                 console.log('未找到 "See" 按钮。');
+                const photoDir = path.join(process.cwd(), 'screenshots');
+                if (!fs.existsSync(photoDir)) fs.mkdirSync(photoDir, { recursive: true });
+                const safeUsername = user.username.replace(/[^a-z0-9]/gi, '_');
+                const noDashboardShotPath = path.join(photoDir, `${safeUsername}_no_dashboard.png`);
+                try { await page.screenshot({ path: noDashboardShotPath, fullPage: true }); } catch (e) { }
+                await sendTelegramMessage(
+                    `⚠️ *未找到服务器列表入口*\n用户: ${user.username}\n原因: 登录后未找到 See 按钮，请查看截图或 Actions 日志`,
+                    noDashboardShotPath
+                );
                 continue;
             }
 
